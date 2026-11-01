@@ -1,0 +1,35 @@
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.code-workspace
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Node
+node_modules/
+
+# Local env
+.env
+.env.local
+.env.*
+!.env.example
+!.env.*.example
+.aws/
+.venv/
+syndicate_venv/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan
+tfplan
+tfplan.*
+crash.log
+crash.*.log
