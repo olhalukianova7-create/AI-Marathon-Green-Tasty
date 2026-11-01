@@ -80,21 +80,16 @@ describe('GeneralInformationComponent', () => {
     readerResults = new WeakMap();
     readerStates = new WeakMap();
 
-    // Control callbacks without reading or decoding real files.
-    spyOnProperty(FileReader.prototype, 'result', 'get')
-      .and.callFake(function (this: FileReader) {
-      return readerResults.get(this) ?? null;
-    });
-
-    spyOnProperty(FileReader.prototype, 'readyState', 'get')
-      .and.callFake(function (this: FileReader) {
-      return readerStates.get(this) ?? FileReader.EMPTY;
-    });
-
     readSpy = spyOn(
       FileReader.prototype,
       'readAsDataURL',
     ).and.callFake(function (this: FileReader) {
+      // Configure only the reader used by this test. Native prototype accessors
+      // can be non-configurable and cannot be replaced by spyOnProperty.
+      Object.defineProperties(this, {
+        result: { configurable: true, get: () => readerResults.get(this) ?? null },
+        readyState: { configurable: true, get: () => readerStates.get(this) ?? FileReader.EMPTY },
+      });
       readers.push(this);
       readerStates.set(this, FileReader.LOADING);
     });

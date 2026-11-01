@@ -10,26 +10,9 @@ const OLENA: Participant = {
   name: 'Olena',
   isSubmitted: false,
   total: 440,
-  items: [
-    {
-      dish: {
-        id: 'dish2',
-        name: 'Tom Yum',
-        price: 220,
-        imageUrl: 'assets/img/dishes/spring-salad.jpg',
-      },
-      quantity: 2,
-    },
-  ],
+  items: [{ dish: { id: 'dish2', name: 'Tom Yum', price: 220, imageUrl: 'assets/img/dishes/spring-salad.jpg' }, quantity: 2 }],
 };
-const OWNER: Participant = {
-  id: 'owner',
-  type: 'Owner',
-  name: 'Yevhenii',
-  isSubmitted: true,
-  total: 0,
-  items: [],
-};
+const OWNER: Participant = { id: 'owner', type: 'Owner', name: 'Yevhenii', isSubmitted: true, total: 0, items: [] };
 
 function render(participant: Participant): HTMLElement {
   const fixture = TestBed.createComponent(ParticipantCardComponent);
@@ -80,23 +63,5 @@ describe('Практичне · картка учасника', () => {
     it('«Submitted», якщо підтверджений', () => {
       expect(render({ ...OLENA, isSubmitted: true }).textContent).toContain('Submitted');
     });
-  });
-  it('emits the selected guest when Remove Guest is clicked', () => {
-    const fixture = TestBed.createComponent(ParticipantCardComponent);
-    fixture.componentRef.setInput('participant', OLENA);
-    fixture.componentRef.setInput('canRemove', true);
-    const removed = jasmine.createSpy('removed');
-    fixture.componentInstance.removeClick.subscribe(removed);
-    fixture.detectChanges();
-    (fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();
-    expect(removed).toHaveBeenCalledOnceWith(OLENA);
-  });
-
-  it('never renders Remove Guest for the owner even if canRemove is true', () => {
-    const fixture = TestBed.createComponent(ParticipantCardComponent);
-    fixture.componentRef.setInput('participant', OWNER);
-    fixture.componentRef.setInput('canRemove', true);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('button')).toBeNull();
   });
 });

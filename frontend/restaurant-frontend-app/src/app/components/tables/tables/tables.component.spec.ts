@@ -32,6 +32,9 @@ describe('ReservationsPageComponent', () => {
   let toastService: jasmine.SpyObj<ToastService>;
 
   beforeEach(async () => {
+    // Keep booking slots deterministic regardless of the actual time of the run.
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date(2026, 10, 1, 10, 0, 0));
     reservationService = jasmine.createSpyObj<ReservationService>('ReservationService', [
       'makeReservation$',
     ]);
@@ -52,6 +55,10 @@ describe('ReservationsPageComponent', () => {
     fixture = TestBed.createComponent(TablesComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    jasmine.clock().uninstall();
   });
 
   it('should create', () => {

@@ -8,11 +8,7 @@ import { GroupOrdersService } from './group-orders.service';
 describe('Бонус · removeSession$', () => {
   it('DELETE /guest/groups/{id}/sessions/{guestSessionId}', () => {
     TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: API_BASE_URL, useValue: 'https://api.test' },
-      ],
+      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: API_BASE_URL, useValue: 'https://api.test' }],
     });
     const http = TestBed.inject(HttpTestingController);
     TestBed.inject(GroupOrdersService).removeSession$('grp-1', 'gs-2').subscribe();
