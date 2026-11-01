@@ -224,7 +224,8 @@ public class GuestSessionService(
                 return new OrderItemResponse
                 {
                     Dish = DishMapper.ToDishResponse(dish),
-                    Quantity = d.Quantity
+                    Quantity = d.Quantity,
+                    State = (int)d.State
                 };
             }).ToArray();
 
@@ -361,7 +362,8 @@ public class GuestSessionService(
         var items = session.Dishes.Select(d => new OrderItemResponse
         {
             Dish = DishMapper.ToDishResponse(dishesById[d.DishId]),
-            Quantity = d.Quantity
+            Quantity = d.Quantity,
+            State = (int)d.State
         }).ToArray();
 
         decimal total = items.Sum(i => i.Quantity * i.Dish.Price);
