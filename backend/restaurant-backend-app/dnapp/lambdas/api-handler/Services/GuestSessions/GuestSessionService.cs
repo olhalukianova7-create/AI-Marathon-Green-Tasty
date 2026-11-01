@@ -178,9 +178,28 @@ public class GuestSessionService(
         return await GetGroupSnapshotAsync(groupReservationId);
     }
 
-    private async Task<GetAllSessionsResponse> GetGroupSnapshotAsync(string groupReservationId)
+    public async Task<GetAllSessionsResponse> DeleteGuestSessionAsync(string userId, string groupReservationId, string guestSessionId)
     {
-        var sessions = await guestSessionRepository.GetAllByGroupReservationIdAsync(groupReservationId);
+        await ValidateReservationOwnerAsync(groupReservationId, userId);
+
+        var session = await guestSessionRepository.GetByGuestSessionId(guestSessionId)
+            ?? throw new GuestSessionNotFoundException($"Guest session with id {guestSessionId} not found.");
+
+        if (session.GroupReservationId != groupReservationId)
+        {
+            throw new ValidationException("Guest session does not belong to this group reservation.");
+        }
+
+        await guestSessionRepository.DeleteAsync(session);
+
+        return await GetGroupSnapshotAsync(groupReservationId, guestSessionId);
+    }
+
+    private async Task<GetAllSessionsResponse> GetGroupSnapshotAsync(string groupReservationId, string? excludedSessionId = null)
+    {
+        var storedSessions = await guestSessionRepository.GetAllByGroupReservationIdAsync(groupReservationId);
+        // The group index may still return a recently deleted session until it catches up.
+        var sessions = storedSessions.Where(s => s.Id != excludedSessionId).ToArray();
 
         var dishIds = sessions
             .SelectMany(s => s.Dishes)
