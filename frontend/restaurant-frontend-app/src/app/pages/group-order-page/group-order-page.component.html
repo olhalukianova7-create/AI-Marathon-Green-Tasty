@@ -1,60 +1,149 @@
-<main class="page">
+<main class="page" [attr.aria-busy]="loading()">
   <div class="review">
-    <header class="review-header">
-      <div class="heading">
+    @if (loading()) {
+      <section class="screen-state" role="status" aria-live="polite">
         <h1>Group Pre-Order</h1>
-        <span class="group-status">Created New Pre-Order</span>
-      </div>
-      <div class="reservation-details" aria-label="Reservation details">
-        <span class="detail">
-          <img src="assets/svg/location.svg" alt="" width="16" height="16" />
-          {{ invite.LocationAddress }}
-        </span>
-        <span class="detail">
-          <img src="assets/svg/calendar-green.svg" alt="" width="16" height="16" />
-          {{ invite.StartTime | date: 'MMM d, y' : 'UTC' }}
-        </span>
-        <span class="detail">
-          <img src="assets/svg/clock.svg" alt="" width="16" height="16" />
-          {{ invite.StartTime | date: 'HH:mm' : 'UTC' }} –
-          {{ invite.EndTime | date: 'HH:mm' : 'UTC' }}
-        </span>
-        <span class="detail">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            aria-hidden="true"
-          >
-            <circle cx="9" cy="7" r="3" />
-            <path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6M18 13a6 6 0 0 1 3 5v3" />
-          </svg>
-          {{ participantCount() }} of {{ invite.MaxGuestCount }} guests
-        </span>
-      </div>
-    </header>
+        <p>Loading group pre-orders…</p>
+      </section>
+    } @else if (loadError()) {
+      <section class="screen-state" role="alert">
+        <h1>Group Pre-Order</h1>
+        <p>{{ loadError() }}</p>
+        <button class="action-button primary" type="button" (click)="load()">Try again</button>
+      </section>
+    } @else {
+      @if (invite(); as reservation) {
+        <header class="review-header">
+          <div class="heading">
+            <h1>Group Pre-Order</h1>
+            <span class="group-status" [class.sent]="status() === 'Submitted'" role="status">{{
+              statusLabel()
+            }}</span>
+          </div>
+          <div class="reservation-details" aria-label="Reservation details">
+            <span class="detail">
+              <img src="assets/svg/location.svg" alt="" width="16" height="16" />
+              {{ reservation.LocationAddress }}
+            </span>
+            <span class="detail">
+              <img src="assets/svg/calendar-green.svg" alt="" width="16" height="16" />
+              {{ reservation.StartTime | date: 'MMM d, y' : 'UTC' }}
+            </span>
+            <span class="detail">
+              <img src="assets/svg/clock.svg" alt="" width="16" height="16" />
+              {{ reservation.StartTime | date: 'HH:mm' : 'UTC' }} –
+              {{ reservation.EndTime | date: 'HH:mm' : 'UTC' }}
+            </span>
+            <span class="detail">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <circle cx="9" cy="7" r="3" />
+                <path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6M18 13a6 6 0 0 1 3 5v3" />
+              </svg>
+              {{ participantCount() }} of {{ reservation.MaxGuestCount }} guests
+            </span>
+          </div>
+        </header>
 
-    <ul class="participants" aria-label="Group participants">
-      @for (person of participants(); track person.id) {
-        <li>
-          <app-participant-card [participant]="person" [isMe]="person.id === ownerSessionId" />
-        </li>
+        @if (status() === 'Open' && pendingCount()) {
+          <p class="notice" role="status">{{ pendingMessage() }}</p>
+        }
+        @if (!hasDishes()) {
+          <p class="empty-state">Participants haven't added any dishes yet</p>
+        }
+
+        <ul class="participants" aria-label="Group participants">
+          @for (person of participants(); track person.id) {
+            <li>
+              <app-participant-card
+                [participant]="person"
+                [isMe]="person.id === ownerSessionId()"
+              />
+            </li>
+          }
+        </ul>
+
+        <section class="consolidated" aria-labelledby="consolidated-heading">
+          <h2 id="consolidated-heading">Consolidated pre-order</h2>
+          <p class="section-description">
+            Only submitted carts are included in the restaurant's order.
+          </p>
+          @if (consolidated().items.length) {
+            <ul class="consolidated-items">
+              @for (item of consolidated().items; track item.dish.id) {
+                <li>
+                  <span>{{ item.dish.name }} × {{ item.quantity }}</span
+                  ><span>{{ item.dish.price * item.quantity | currency }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="section-description">No submitted dishes yet</p>
+          }
+        </section>
+
+        <footer class="summary">
+          <p class="grand-total">
+            <span>Grand Total</span><strong>{{ grandTotal() | currency }}</strong>
+          </p>
+          @if (submitError()) {
+            <p class="submit-error" role="alert">Couldn't send your pre-order. Please try again.</p>
+          }
+          @if (status() === 'Open') {
+            <button
+              class="submit"
+              type="button"
+              [disabled]="!canSubmit()"
+              (click)="openConfirmation()"
+            >
+              Submit Pre-Order
+            </button>
+          } @else {
+            <button class="submit" type="button" disabled>{{ statusLabel() }}</button>
+          }
+        </footer>
       }
-    </ul>
-
-    <footer class="summary">
-      <p class="grand-total">
-        <span>Grand Total</span><strong>{{ grandTotal | currency }}</strong>
-      </p>
-      <button class="submit" type="button" disabled aria-describedby="preview-note">
-        Submit Pre-Order
-      </button>
-      <p class="preview-note" id="preview-note">
-        Pre-order submission is not available in this preview.
-      </p>
-    </footer>
+    }
   </div>
+
+  @if (confirmationOpen()) {
+    <app-modal
+      title="Submit group pre-order?"
+      (closed)="closeConfirmation()"
+      [closeOnBackdrop]="!submitting()"
+    >
+      <p>Send the submitted carts to the restaurant as one order?</p>
+      <p class="confirmation-total">
+        Grand Total <strong>{{ grandTotal() | currency }}</strong>
+      </p>
+      @if (pendingCount()) {
+        <p class="notice">{{ pendingMessage() }}</p>
+      }
+      <div class="confirmation-actions" modal-actions [attr.aria-busy]="submitting()">
+        <button
+          class="action-button secondary"
+          type="button"
+          [disabled]="submitting()"
+          (click)="closeConfirmation()"
+        >
+          Cancel
+        </button>
+        <button
+          class="action-button primary"
+          type="button"
+          [disabled]="submitting()"
+          (click)="submit()"
+        >
+          {{ submitting() ? 'Submitting…' : 'Submit' }}
+        </button>
+      </div>
+    </app-modal>
+  }
 </main>

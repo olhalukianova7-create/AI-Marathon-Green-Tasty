@@ -87,18 +87,17 @@ h1 {
   padding: 12px 24px;
   border: 0;
   border-radius: 8px;
-  background: color.$neutral-200;
-  color: color.$neutral-600;
+  background: color.$green-gradient;
+  color: color.$neutral-0;
   font: inherit;
   font-weight: 600;
-  cursor: not-allowed;
-}
-.preview-note {
-  margin-top: 12px;
-  color: color.$neutral-600;
-  font-size: 12px;
-  line-height: 20px;
-  text-align: center;
+  cursor: pointer;
+
+  &:disabled {
+    background: color.$neutral-200;
+    color: color.$neutral-600;
+    cursor: not-allowed;
+  }
 }
 
 @media (max-width: 600px) {
@@ -123,5 +122,116 @@ h1 {
   .grand-total {
     font-size: 22px;
     line-height: 32px;
+  }
+}
+
+.sent {
+  background: color.$orange-100;
+}
+.notice {
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  border: 1px solid color.$orange-100;
+  border-radius: 8px;
+  background: color.$orange-30;
+}
+.empty-state,
+.screen-state {
+  padding: 32px 24px;
+  border-radius: 16px;
+  background: color.$neutral-0;
+  text-align: center;
+}
+.screen-state h1 {
+  margin-bottom: 16px;
+}
+.screen-state p {
+  margin-bottom: 20px;
+}
+.empty-state {
+  margin-bottom: 24px;
+  color: color.$neutral-600;
+}
+.consolidated {
+  margin-top: 24px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: color.$neutral-0;
+}
+.consolidated h2 {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.section-description {
+  color: color.$neutral-600;
+  font-size: 13px;
+}
+.consolidated-items {
+  margin-top: 16px;
+  list-style: none;
+}
+.consolidated-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid color.$neutral-100;
+}
+.consolidated-items li span:first-child {
+  overflow-wrap: anywhere;
+}
+.consolidated-items li span:last-child {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.submit-error {
+  margin-bottom: 16px;
+  color: color.$red-400;
+}
+.confirmation-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.confirmation-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.action-button {
+  min-height: 44px;
+  padding: 10px 24px;
+  border: 1px solid color.$green-800;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.primary {
+  background: color.$green-800;
+  color: color.$neutral-0;
+}
+.secondary {
+  background: color.$neutral-0;
+  color: color.$green-800;
+}
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.action-button:focus-visible,
+.submit:focus-visible {
+  outline: 2px solid color.$green-600;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .consolidated {
+    padding: 16px;
+  }
+  .confirmation-actions button {
+    flex: 1;
   }
 }
