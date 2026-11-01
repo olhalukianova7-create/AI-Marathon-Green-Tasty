@@ -149,6 +149,17 @@ export class CardReservationComponent {
     );
   });
 
+  readonly canViewGroupPreOrder = computed(() =>
+    this.role() === Roles.CUSTOMER &&
+    this.r().guestCount > 1 &&
+    this.r().status !== ReservationStatusCustomer.Cancelled
+  );
+
+  viewPreOrder(): void {
+    if (!this.canViewGroupPreOrder()) return;
+    void this.router.navigate(['/reservations', this.r().id, 'group-order']);
+  }
+
   onPreOrder(): void {
     const reservation = this.r();
     const startTime = new Date(reservation.startTime);
