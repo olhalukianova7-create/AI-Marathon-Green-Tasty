@@ -1,0 +1,60 @@
+<main class="page">
+  <div class="review">
+    <header class="review-header">
+      <div class="heading">
+        <h1>Group Pre-Order</h1>
+        <span class="group-status">Created New Pre-Order</span>
+      </div>
+      <div class="reservation-details" aria-label="Reservation details">
+        <span class="detail">
+          <img src="assets/svg/location.svg" alt="" width="16" height="16" />
+          {{ invite.LocationAddress }}
+        </span>
+        <span class="detail">
+          <img src="assets/svg/calendar-green.svg" alt="" width="16" height="16" />
+          {{ invite.StartTime | date: 'MMM d, y' : 'UTC' }}
+        </span>
+        <span class="detail">
+          <img src="assets/svg/clock.svg" alt="" width="16" height="16" />
+          {{ invite.StartTime | date: 'HH:mm' : 'UTC' }} –
+          {{ invite.EndTime | date: 'HH:mm' : 'UTC' }}
+        </span>
+        <span class="detail">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <circle cx="9" cy="7" r="3" />
+            <path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6M18 13a6 6 0 0 1 3 5v3" />
+          </svg>
+          {{ participantCount() }} of {{ invite.MaxGuestCount }} guests
+        </span>
+      </div>
+    </header>
+
+    <ul class="participants" aria-label="Group participants">
+      @for (person of participants(); track person.id) {
+        <li>
+          <app-participant-card [participant]="person" [isMe]="person.id === ownerSessionId" />
+        </li>
+      }
+    </ul>
+
+    <footer class="summary">
+      <p class="grand-total">
+        <span>Grand Total</span><strong>{{ grandTotal | currency }}</strong>
+      </p>
+      <button class="submit" type="button" disabled aria-describedby="preview-note">
+        Submit Pre-Order
+      </button>
+      <p class="preview-note" id="preview-note">
+        Pre-order submission is not available in this preview.
+      </p>
+    </footer>
+  </div>
+</main>

@@ -1,0 +1,127 @@
+@use 'app/shared/styles/abstracts/colors' as color;
+
+:host {
+  display: block;
+}
+.page {
+  min-height: calc(100dvh - 88px);
+  box-sizing: border-box;
+  padding: 40px 24px 56px;
+  background: color.$neutral-100;
+}
+.review {
+  max-width: 840px;
+  margin: 0 auto;
+}
+.review-header {
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid color.$bg-green;
+}
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 40px;
+}
+.group-status {
+  padding: 3px 12px;
+  border-radius: 6px;
+  background: color.$neutral-200;
+  font-size: 12px;
+  line-height: 20px;
+}
+.reservation-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 22px;
+}
+.detail img,
+.detail svg {
+  flex-shrink: 0;
+  color: color.$green-600;
+}
+.participants {
+  display: grid;
+  gap: 24px;
+  list-style: none;
+}
+.participants > li {
+  min-width: 0;
+}
+.summary {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid color.$bg-green;
+}
+.grand-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 36px;
+}
+.grand-total strong {
+  font-weight: 500;
+  color: color.$green-800;
+  font-variant-numeric: tabular-nums;
+}
+.submit {
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 8px;
+  background: color.$neutral-200;
+  color: color.$neutral-600;
+  font: inherit;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+.preview-note {
+  margin-top: 12px;
+  color: color.$neutral-600;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 24px 16px 32px;
+  }
+  .heading {
+    align-items: flex-start;
+    gap: 8px;
+  }
+  h1 {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .reservation-details {
+    gap: 10px 16px;
+    font-size: 13px;
+  }
+  .participants {
+    gap: 16px;
+  }
+  .grand-total {
+    font-size: 22px;
+    line-height: 32px;
+  }
+}
