@@ -5,13 +5,26 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   OnInit,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { finalize, forkJoin, map, switchMap } from 'rxjs';
+import {
+  catchError,
+  defer,
+  EMPTY,
+  exhaustMap,
+  finalize,
+  forkJoin,
+  interval,
+  map,
+  Observable,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { ParticipantCardComponent } from '@app/components/group-orders/participant-card/participant-card.component';
 import { GroupReservationStatus } from '@app/models/group-orders/group-status.model';
 import { Participant } from '@app/models/group-orders/participant.model';
@@ -44,6 +57,19 @@ export class GroupOrderPageComponent implements OnInit {
   readonly submitting = signal(false);
   readonly submitError = signal(false);
   readonly confirmationOpen = signal(false);
+  readonly syncing = signal(false);
+  readonly syncError = signal(false);
+  readonly lastUpdated = signal<Date | null>(null);
+
+  private readonly synchronization = effect((onCleanup) => {
+    const groupId = this.invite()?.GroupReservationId;
+    if (!groupId || this.status() !== 'Open' || this.loading() || this.loadError()) return;
+
+    const subscription = interval(15_000)
+      .pipe(exhaustMap(() => this.refreshSnapshot$(groupId)))
+      .subscribe();
+    onCleanup(() => subscription.unsubscribe());
+  });
 
   readonly participantCount = computed(() => this.participants().length);
   readonly consolidated = computed(() => consolidatePreOrder(this.participants()));
@@ -75,6 +101,7 @@ export class GroupOrderPageComponent implements OnInit {
       this.consolidated().items.length > 0 &&
       !this.loading() &&
       !this.submitting() &&
+      !this.syncing() &&
       !this.loadError()
   );
 
@@ -91,6 +118,7 @@ export class GroupOrderPageComponent implements OnInit {
     this.loading.set(true);
     this.loadError.set(null);
     this.submitError.set(false);
+    this.syncError.set(false);
     this.confirmationOpen.set(false);
 
     this.service
@@ -112,6 +140,7 @@ export class GroupOrderPageComponent implements OnInit {
           this.participants.set(sessions.participants);
           this.ownerSessionId.set(ownerSessionId);
           this.status.set(groupStatus.status);
+          this.lastUpdated.set(new Date());
         },
         error: (error: unknown) => {
           this.loadError.set(
@@ -121,6 +150,44 @@ export class GroupOrderPageComponent implements OnInit {
           );
         },
       });
+  }
+
+  refresh(): void {
+    const groupId = this.invite()?.GroupReservationId;
+    if (!groupId) return;
+    this.refreshSnapshot$(groupId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+  }
+
+  private refreshSnapshot$(groupId: string): Observable<void> {
+    return defer(() => {
+      if (
+        this.syncing() ||
+        this.loading() ||
+        this.submitting() ||
+        this.confirmationOpen() ||
+        this.status() !== 'Open'
+      )
+        return EMPTY;
+      this.syncing.set(true);
+
+      return forkJoin({
+        sessions: this.service.getSessions$(groupId, { silent: true }),
+        groupStatus: this.service.getStatus$(groupId, { silent: true }),
+      }).pipe(
+        tap(({ sessions, groupStatus }) => {
+          this.participants.set(sessions.participants);
+          this.status.set(groupStatus.status);
+          this.lastUpdated.set(new Date());
+          this.syncError.set(false);
+        }),
+        map(() => undefined),
+        catchError(() => {
+          this.syncError.set(true);
+          return EMPTY;
+        }),
+        finalize(() => this.syncing.set(false))
+      );
+    });
   }
 
   openConfirmation(): void {

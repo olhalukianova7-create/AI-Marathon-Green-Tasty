@@ -17,12 +17,14 @@ export const tokenInterceptor: HttpInterceptorFn = (
 ) => {
   const toastr = inject(ToastService);
 
-  // IMPORTANT: do not modify Guest endpoints at all.
-  // Guest flow uses a different token (guest session token) and we must not touch the body.
-  // Otherwise we break POST /guest/sessions payload.
-  if (req.url.includes('/guest/')) {
+  // Owner group-management endpoints use the customer's JWT. Other guest endpoints
+  // keep their guest-session token and request body unchanged.
+  const isOwnerGroupRequest = (req.method === 'GET' || req.method === 'DELETE') &&
+    /\/guest\/groups\/[^/]+\/sessions(?:\/[^/?]+)?(?:\?|$)/.test(req.url);
+  if (req.url.includes('/guest/') && !isOwnerGroupRequest) {
     return next(req).pipe(
       catchError((error: HttpErrorResponse) => {
+        if (req.context.get(SKIP_ERROR_TOAST)) return throwError(() => error);
         console.log(error);
 
         let errorMessage = 'An unexpected error occurred.';

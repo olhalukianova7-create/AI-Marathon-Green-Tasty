@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, Observable, switchMap } from 'rxjs';
 import { GroupSessionsResponse } from '@app/models/group-orders/group-sessions-response.model';
@@ -8,6 +8,8 @@ import { SubmittedDish } from '@app/models/group-orders/submit-group-pre-order.m
 import { GuestInvite } from '@app/models/reservations/guest-invite.model';
 import { API_BASE_URL } from '@app/shared/config/api-base-url.token';
 import { GuestInviteService } from '@app/services/reservation/guest-invite.service';
+import { SKIP_ERROR_TOAST } from '@app/auth/skip-error-toast.context';
+import { GroupOrderRequestOptions } from '@app/models/group-orders/group-order-request-options.model';
 
 @Injectable({ providedIn: 'root' })
 export class GroupOrdersService {
@@ -21,9 +23,13 @@ export class GroupOrdersService {
       .pipe(switchMap(({ token }) => this.guestInvites.getInvite$(token)));
   }
 
-  getSessions$(groupId: string): Observable<GroupSessionsResponse> {
+  getSessions$(
+    groupId: string,
+    options: GroupOrderRequestOptions = {}
+  ): Observable<GroupSessionsResponse> {
     return this.http.get<GroupSessionsResponse>(
-      `${this.baseUrl}/guest/groups/${encodeURIComponent(groupId)}/sessions`
+      `${this.baseUrl}/guest/groups/${encodeURIComponent(groupId)}/sessions`,
+      { context: new HttpContext().set(SKIP_ERROR_TOAST, options.silent ?? false) }
     );
   }
 
@@ -35,9 +41,13 @@ export class GroupOrdersService {
       .pipe(map(({ guestSessionId }) => guestSessionId));
   }
 
-  getStatus$(groupId: string): Observable<GroupStatusResponse> {
+  getStatus$(
+    groupId: string,
+    options: GroupOrderRequestOptions = {}
+  ): Observable<GroupStatusResponse> {
     return this.http.get<GroupStatusResponse>(
-      `${this.baseUrl}/guest/groups/${encodeURIComponent(groupId)}/status`
+      `${this.baseUrl}/guest/groups/${encodeURIComponent(groupId)}/status`,
+      { context: new HttpContext().set(SKIP_ERROR_TOAST, options.silent ?? false) }
     );
   }
 

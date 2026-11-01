@@ -52,6 +52,28 @@
           </div>
         </header>
 
+        <div class="sync-toolbar" aria-live="polite">
+          @if (lastUpdated(); as updated) {
+            <p>Updated at {{ updated | date: 'HH:mm:ss' }}</p>
+          }
+          @if (syncing()) {
+            <span>Refreshing…</span>
+          }
+          <button
+            class="refresh-button"
+            type="button"
+            [disabled]="syncing() || submitting() || confirmationOpen() || status() !== 'Open'"
+            (click)="refresh()"
+          >
+            Refresh
+          </button>
+        </div>
+        @if (syncError()) {
+          <p class="sync-error" role="status">
+            Couldn't refresh. Showing data from {{ lastUpdated() | date: 'HH:mm:ss' }}.
+          </p>
+        }
+
         @if (status() === 'Open' && pendingCount()) {
           <p class="notice" role="status">{{ pendingMessage() }}</p>
         }
