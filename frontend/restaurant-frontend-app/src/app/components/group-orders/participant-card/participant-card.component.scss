@@ -133,3 +133,21 @@ h2 {
     grid-column: 3;
   }
 }
+
+.remove-guest {
+  display: block;
+  margin-left: auto;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: color.$neutral-900;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid color.$green-600;
+    outline-offset: 3px;
+  }
+}

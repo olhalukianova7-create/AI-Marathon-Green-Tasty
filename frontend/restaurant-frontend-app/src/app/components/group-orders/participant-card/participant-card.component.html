@@ -35,6 +35,17 @@
     <p class="empty">No dishes yet</p>
   }
 
+  @if (canRemove() && participant().type === 'Guest') {
+    <button
+      class="remove-guest"
+      type="button"
+      [attr.aria-label]="'Remove ' + participant().name"
+      (click)="removeClick.emit(participant())"
+    >
+      Remove Guest
+    </button>
+  }
+
   <p class="subtotal">
     <span>Subtotal</span>
     <span>{{ participant().total | currency }}</span>

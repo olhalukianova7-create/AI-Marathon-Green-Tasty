@@ -57,6 +57,9 @@ export class GroupOrderPageComponent implements OnInit {
   readonly submitting = signal(false);
   readonly submitError = signal(false);
   readonly confirmationOpen = signal(false);
+  readonly removing = signal(false);
+  readonly removeTarget = signal<Participant | null>(null);
+  readonly removeError = signal(false);
   readonly syncing = signal(false);
   readonly syncError = signal(false);
   readonly lastUpdated = signal<Date | null>(null);
@@ -102,6 +105,8 @@ export class GroupOrderPageComponent implements OnInit {
       !this.loading() &&
       !this.submitting() &&
       !this.syncing() &&
+      !this.removing() &&
+      !this.removeTarget() &&
       !this.loadError()
   );
 
@@ -110,7 +115,14 @@ export class GroupOrderPageComponent implements OnInit {
   }
 
   load(): void {
-    if (this.loading() || this.submitting()) return;
+    if (
+      this.loading() ||
+      this.submitting() ||
+      this.syncing() ||
+      this.removing() ||
+      this.removeTarget()
+    )
+      return;
     if (!this.reservationId) {
       this.loadError.set('Group reservation not found');
       return;
@@ -165,6 +177,8 @@ export class GroupOrderPageComponent implements OnInit {
         this.loading() ||
         this.submitting() ||
         this.confirmationOpen() ||
+        this.removeTarget() ||
+        this.removing() ||
         this.status() !== 'Open'
       )
         return EMPTY;
@@ -188,6 +202,69 @@ export class GroupOrderPageComponent implements OnInit {
         finalize(() => this.syncing.set(false))
       );
     });
+  }
+
+  readonly canRemove = computed(
+    () =>
+      this.status() === 'Open' &&
+      !this.loading() &&
+      !this.loadError() &&
+      !this.syncing() &&
+      !this.submitting() &&
+      !this.confirmationOpen() &&
+      !this.removing() &&
+      !this.removeTarget()
+  );
+
+  openRemoveConfirmation(person: Participant): void {
+    if (
+      !this.canRemove() ||
+      person.type !== 'Guest' ||
+      person.id === this.ownerSessionId() ||
+      !this.participants().some((participant) => participant.id === person.id)
+    )
+      return;
+    this.removeError.set(false);
+    this.removeTarget.set(person);
+  }
+
+  closeRemoveConfirmation(): void {
+    if (!this.removing()) this.removeTarget.set(null);
+  }
+
+  removeGuest(): void {
+    const target = this.removeTarget();
+    const groupId = this.invite()?.GroupReservationId;
+    if (
+      !target ||
+      !groupId ||
+      this.removing() ||
+      this.syncing() ||
+      this.submitting() ||
+      this.status() !== 'Open'
+    )
+      return;
+    this.removing.set(true);
+    this.removeError.set(false);
+    this.service
+      .removeSession$(groupId, target.id)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.removing.set(false))
+      )
+      .subscribe({
+        next: (sessions) => {
+          this.participants.set(sessions.participants);
+          this.lastUpdated.set(new Date());
+          this.syncError.set(false);
+          this.removeTarget.set(null);
+          this.toast.success('Guest removed from the reservation');
+        },
+        error: () => {
+          // tokenInterceptor displays the API error toast. Keep the dialog for retry.
+          this.removeError.set(true);
+        },
+      });
   }
 
   openConfirmation(): void {

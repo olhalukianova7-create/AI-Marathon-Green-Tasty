@@ -62,7 +62,14 @@
           <button
             class="refresh-button"
             type="button"
-            [disabled]="syncing() || submitting() || confirmationOpen() || status() !== 'Open'"
+            [disabled]="
+              syncing() ||
+              submitting() ||
+              confirmationOpen() ||
+              removing() ||
+              removeTarget() ||
+              status() !== 'Open'
+            "
             (click)="refresh()"
           >
             Refresh
@@ -87,6 +94,10 @@
               <app-participant-card
                 [participant]="person"
                 [isMe]="person.id === ownerSessionId()"
+                [canRemove]="
+                  canRemove() && person.type === 'Guest' && person.id !== ownerSessionId()
+                "
+                (removeClick)="openRemoveConfirmation($event)"
               />
             </li>
           }
@@ -134,6 +145,40 @@
       }
     }
   </div>
+
+  @if (removeTarget(); as guest) {
+    <app-modal
+      title="Remove Guest"
+      (closed)="closeRemoveConfirmation()"
+      [closeOnBackdrop]="!removing()"
+    >
+      <p>
+        Are you sure you want to remove <strong>{{ guest.name }}</strong> and their pre-order from
+        this reservation? This action cannot be undone.
+      </p>
+      @if (removeError()) {
+        <p class="submit-error" role="alert">Couldn't remove this guest. Please try again.</p>
+      }
+      <div class="confirmation-actions remove-actions" modal-actions [attr.aria-busy]="removing()">
+        <button
+          class="action-button secondary"
+          type="button"
+          [disabled]="removing()"
+          (click)="closeRemoveConfirmation()"
+        >
+          Cancel
+        </button>
+        <button
+          class="action-button danger"
+          type="button"
+          [disabled]="removing()"
+          (click)="removeGuest()"
+        >
+          {{ removing() ? 'Removing…' : 'Remove Guest' }}
+        </button>
+      </div>
+    </app-modal>
+  }
 
   @if (confirmationOpen()) {
     <app-modal

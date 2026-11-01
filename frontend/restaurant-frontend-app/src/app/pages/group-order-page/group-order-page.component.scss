@@ -274,3 +274,12 @@ h1 {
   color: color.$neutral-700;
   border-radius: 8px;
 }
+
+.remove-actions {
+  justify-content: flex-end;
+}
+.danger {
+  border-color: color.$red-400;
+  background: color.$neutral-0;
+  color: color.$red-400;
+}
