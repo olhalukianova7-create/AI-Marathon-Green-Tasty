@@ -1,3 +1,9 @@
+# Green & Tasty
+
+**AQA homework: Track 1 (group pre-order), using C# / .NET 10, xUnit, Playwright Page Objects, and API tests.**
+
+See [test automation setup and progress](aqa/restaurant-aqa-framework/README.md) for local runs, GitHub Actions, AWS CodeBuild, and remaining homework coverage.
+
 # Deployment Guide
 
 This repo uses three deployment tracks:

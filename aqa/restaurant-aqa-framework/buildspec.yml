@@ -1,0 +1,42 @@
+version: 0.2
+
+# Use aws/codebuild/standard:7.0 (Ubuntu 22.04), with PowerShell available.
+# Configure AQA_UI_BASE_URL and AQA_API_BASE_URL on the CodeBuild project.
+# Future account credentials must use Secrets Manager, never plaintext values here.
+env:
+  shell: bash
+  variables:
+    CI: 'true'
+    AQA_HEADLESS: 'true'
+
+phases:
+  install:
+    runtime-versions:
+      dotnet: '10.0'
+    commands:
+      - cd "$CODEBUILD_SRC_DIR/aqa/restaurant-aqa-framework"
+      - dotnet build --configuration Release
+      - pwsh ./bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+  pre_build:
+    commands:
+      - test -n "$AQA_UI_BASE_URL"
+      - test -n "$AQA_API_BASE_URL"
+  build:
+    on-failure: CONTINUE
+    commands:
+      - bash scripts/run-tests.sh
+  post_build:
+    commands:
+      - echo 'Test execution finished. CodeBuild collects reports and artifacts even when tests fail.'
+
+reports:
+  aqa-tests:
+    base-directory: aqa/restaurant-aqa-framework/TestResults
+    files:
+      - '*.trx'
+    file-format: VISUALSTUDIOTRX
+
+artifacts:
+  base-directory: aqa/restaurant-aqa-framework/TestResults
+  files:
+    - '**/*'

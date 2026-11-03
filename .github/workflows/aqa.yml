@@ -1,0 +1,62 @@
+name: Restaurant AQA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'aqa/**'
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/aqa.yml'
+  pull_request:
+    paths:
+      - 'aqa/**'
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/aqa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      AQA_UI_BASE_URL: ${{ vars.AQA_UI_BASE_URL }}
+      AQA_API_BASE_URL: ${{ vars.AQA_API_BASE_URL }}
+      AQA_RESULTS_DIR: ${{ github.workspace }}/aqa/restaurant-aqa-framework/TestResults
+    defaults:
+      run:
+        working-directory: aqa/restaurant-aqa-framework
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check deployment configuration
+        run: |
+          test -n "$AQA_UI_BASE_URL" || { echo 'Set repository variable AQA_UI_BASE_URL'; exit 1; }
+          test -n "$AQA_API_BASE_URL" || { echo 'Set repository variable AQA_API_BASE_URL'; exit 1; }
+      - name: Build automation
+        run: dotnet build --configuration Release
+      - name: Install Chromium
+        shell: pwsh
+        run: ./bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+      - name: Run smoke tests
+        id: tests
+        continue-on-error: true
+        run: bash scripts/run-tests.sh
+      - name: Upload reports and failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aqa-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: aqa/restaurant-aqa-framework/TestResults/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve failure status after collecting artifacts
+        if: always() && steps.tests.outcome == 'failure'
+        run: exit 1
