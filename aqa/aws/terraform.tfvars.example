@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars and supply your deployed application URLs.
+# terraform.tfvars and Terraform state are ignored by Git.
+ui_base_url    = ""
+api_base_url   = ""

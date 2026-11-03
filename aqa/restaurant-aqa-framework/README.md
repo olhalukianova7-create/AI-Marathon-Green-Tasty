@@ -91,8 +91,13 @@ failure. Fork pull requests must not be given test-account credentials.
 
 `buildspec.yml` runs the same tests in AWS and publishes the TRX report to a CodeBuild
 report group, plus HTML reports and failure artifacts to the project's artifact bucket.
-This file is prepared; **the AWS test project and GitHub source connection have not
-been provisioned or verified yet**.
+The runner infrastructure is prepared in [`../aws`](../aws/README.md).
+The GitHub connection was created and authorized, but AWS Organizations denied
+CodeConnections access from CodeBuild and denied OIDC-provider discovery. The runner
+therefore uses an S3 source archive submitted through the existing CLI login.
+GitHub CI is automatic; AWS runs are started manually using `bash aqa/aws/run-tests.sh`
+from the repository root. **The revised CodeBuild project has not yet been deployed
+or verified**. Follow the Terraform setup in `../aws` for deployment.
 
 When provisioning the runner:
 
@@ -100,8 +105,9 @@ When provisioning the runner:
 2. Use the managed Ubuntu image `aws/codebuild/standard:7.0`, with the .NET 10 runtime
    and PowerShell. Use an EC2-backed Linux build environment for `on-failure: CONTINUE`.
 3. Set the buildspec path to `aqa/restaurant-aqa-framework/buildspec.yml`.
-4. Connect this GitHub repository through CodeConnections. A newly created connection
-   requires the GitHub authorization step in the AWS console.
+   Set `AQA_REPORT_GROUP_ARN` to the precreated CodeBuild report group's ARN.
+4. Use the S3 source configured by Terraform. The helper script uploads a committed
+   source archive and pins each build to its exact S3 object version.
 5. Configure the two base URL variables, a private encrypted S3 artifacts destination,
    CloudWatch logging, and permissions scoped to that bucket and the AQA report group.
    Future account credentials must use Secrets Manager references.

@@ -30,7 +30,7 @@ phases:
       - echo 'Test execution finished. CodeBuild collects reports and artifacts even when tests fail.'
 
 reports:
-  aqa-tests:
+  $AQA_REPORT_GROUP_ARN:
     base-directory: aqa/restaurant-aqa-framework/TestResults
     files:
       - '*.trx'
