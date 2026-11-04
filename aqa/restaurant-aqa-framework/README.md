@@ -114,7 +114,10 @@ the booking or guest-entry UI flows.
 Prerequisites: fill all six dedicated-account fields in private `.env`, assign the
 waiter a restaurant, and have an available dish with a positive price and a table
 with capacity at least four at that restaurant. Fixture dates use UTC now plus
-7–28 days, with random daytime offsets; reservations last 90 minutes. Data names
+7–90 days, with random daytime offsets; reservations last 90 minutes. Setup searches
+up to 20 distinct dates and every returned table, retrying only documented overlap
+conflicts and logging empty-slot/conflict counts. Availability indicates a free slot
+later in the day, so reservation creation still validates the exact requested time. Data names
 include a unique run ID. Bounded polling waits for eventually consistent indexes;
 reservation creation retries only explicit overlap conflicts.
 

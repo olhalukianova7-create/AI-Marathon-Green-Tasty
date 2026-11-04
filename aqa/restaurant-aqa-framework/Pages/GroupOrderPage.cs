@@ -48,9 +48,18 @@ public sealed class GroupOrderPage(IPage page)
     public async Task RefreshAsync()
     {
         var refresh = page.GetByRole(AriaRole.Button, new() { Name = "Refresh", Exact = true });
-        await Expect(refresh).ToBeEnabledAsync();
-        await refresh.ClickAsync();
-        await Expect(refresh).ToBeEnabledAsync();
+        // Background synchronization disables the button while requests are pending.
+        // Cloud response time can exceed the default five-second assertion timeout.
+        await Expect(refresh).ToBeEnabledAsync(new() { Timeout = 30000 });
+        var response = await page.RunAndWaitForResponseAsync(
+            () => refresh.ClickAsync(new() { Timeout = 30000 }),
+            response => response.Request.Method == "GET"
+                && new Uri(response.Url).AbsolutePath.Contains("/guest/groups/")
+                && new Uri(response.Url).AbsolutePath.EndsWith("/sessions"),
+            new() { Timeout = 30000 });
+        if (response.Status != 200)
+            throw new InvalidOperationException($"UI refresh expected HTTP 200, received {response.Status}.");
+        await Expect(refresh).ToBeEnabledAsync(new() { Timeout = 30000 });
     }
 
     public Task ExpectSubmitDisabledAsync() =>
