@@ -52,28 +52,44 @@ public sealed class GroupScenario : IAsyncDisposable
         Dish = dishes.FirstOrDefault(d => d.State == "Available" && d.Price > 0)
             ?? throw new InvalidOperationException("The waiter's restaurant needs an available dish with a positive price.");
 
-        // Random future dates and minute offsets isolate concurrent runs. Retry only
-        // documented overlap conflicts, never arbitrary reservation validation failures.
-        for (var attempt = 0; attempt < 5; attempt++)
+        // Discover eligible tables once using the public endpoint already supported
+        // by this deployment. Reservation creation validates each exact future slot.
+        // The waiter-only inventory route cannot be used by the deployed auth setup.
+        var inventoryStart = DateTime.UtcNow.Date.AddDays(91).AddHours(12);
+        var restaurantTables = await Api.GetAsync<RestaurantTable[]>(
+            $"available-tables?locationId={Uri.EscapeDataString(location.LocationId)}&capacity=4&startTime={Uri.EscapeDataString(inventoryStart.ToString("O"))}");
+        var tables = restaurantTables.Where(t => t.Capacity >= 4).ToArray();
+        if (tables.Length == 0)
+            throw new InvalidOperationException("The waiter's restaurant needs a table with capacity at least four.");
+
+        var candidateDays = Enumerable.Range(7, 84).OrderBy(_ => Random.Shared.Next()).Take(20).ToArray();
+        var overlapConflicts = 0;
+        foreach (var daysAhead in candidateDays)
         {
-            var start = DateTime.UtcNow.Date.AddDays(Random.Shared.Next(7, 29)).AddHours(12)
+            var start = DateTime.UtcNow.Date.AddDays(daysAhead).AddHours(12)
                 .AddMinutes(Random.Shared.Next(0, 180));
-            var tables = await Api.GetAsync<RestaurantTable[]>(
-                $"available-tables?locationId={Uri.EscapeDataString(location.LocationId)}&capacity=4&startTime={Uri.EscapeDataString(start.ToString("O"))}");
-            if (tables.Length == 0) continue;
-            var table = tables[Random.Shared.Next(tables.Length)];
-            using var response = await Api.SendAsync(HttpMethod.Post, "reservations", OwnerToken,
-                new { tableId = table.Id, startTime = start, endTime = start.AddMinutes(90), guestCount = 4 });
-            if (response.StatusCode == HttpStatusCode.BadRequest)
+            foreach (var table in tables.OrderBy(_ => Random.Shared.Next()))
             {
-                var error = await response.Content.ReadAsStringAsync();
-                if (error.Contains("overlap", StringComparison.OrdinalIgnoreCase)) continue;
+                using var response = await Api.SendAsync(HttpMethod.Post, "reservations", OwnerToken,
+                    new { tableId = table.Id, startTime = start, endTime = start.AddMinutes(90), guestCount = 4 });
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    if (error.Contains("overlap", StringComparison.OrdinalIgnoreCase))
+                    {
+                        overlapConflicts++;
+                        continue;
+                    }
+                }
+                GroupApi.RequireStatus(response, HttpStatusCode.Created, "Create test reservation");
+                ReservationId = (await GroupApi.ReadAsync<ReservationResult>(response)).Id;
+                break;
             }
-            GroupApi.RequireStatus(response, HttpStatusCode.Created, "Create test reservation");
-            ReservationId = (await GroupApi.ReadAsync<ReservationResult>(response)).Id;
-            break;
+            if (!string.IsNullOrWhiteSpace(ReservationId)) break;
         }
-        if (string.IsNullOrWhiteSpace(ReservationId)) throw new InvalidOperationException("No free four-person table was found after five future-slot attempts.");
+        output.WriteLine($"Reservation setup: {tables.Length} eligible tables, {overlapConflicts} overlap conflicts.");
+        if (string.IsNullOrWhiteSpace(ReservationId))
+            throw new InvalidOperationException($"No free four-person table was found across {candidateDays.Length} distinct future dates and {tables.Length} tables; {overlapConflicts} overlap conflicts.");
         output.WriteLine($"AQA run {RunId}: reservation {ReservationId}");
 
         var token = await Api.GetAsync<InviteToken>($"reservations/{ReservationId}/invite-token", OwnerToken);

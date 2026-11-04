@@ -86,8 +86,9 @@ AQA_TEST_FILTER='Category=Level1' bash scripts/run-tests.sh
 
 Smoke tests create no accounts, reservations, carts, or other persistent data.
 Level 1 uses dedicated preexisting accounts and creates its own future reservations
-and guest sessions. Each UI scenario has its own browser context. Separate test
-classes can execute in parallel; no test depends on another test's data or order.
+and guest sessions. Each UI scenario has its own browser context. Scenarios run
+sequentially to avoid concurrent load on the small shared backend; each still owns
+its data and no test depends on another test's data or order.
 
 ## Level 1: participants and totals
 
@@ -112,7 +113,15 @@ the booking or guest-entry UI flows.
 Prerequisites: fill all six dedicated-account fields in private `.env`, assign the
 waiter a restaurant, and have an available dish with a positive price and a table
 with capacity at least four at that restaurant. Fixture dates use UTC now plus
-7–28 days, with random daytime offsets; reservations last 90 minutes. Data names
+7–90 days, with random daytime offsets; reservations last 90 minutes. Setup calls
+the supported public availability endpoint once per scenario, using a discovery
+date 91 days ahead, then tries up to 20 distinct reservation dates, with reservation
+creation validating capacity and conflicts. Only documented overlap errors cause
+another slot to be tried; HTTP 504 and other unexpected errors still fail the test.
+This reduces repeated calls to `/available-tables`, which returned HTTP 504 in
+GitHub run `41754598945` (13/16 passed). The attempted waiter table-inventory route
+returned HTTP 403 and is not used. Table-search performance is outside these
+participant scenarios and remains a known application issue. Data names
 include a unique run ID. Bounded polling waits for eventually consistent indexes;
 reservation creation retries only explicit overlap conflicts.
 
