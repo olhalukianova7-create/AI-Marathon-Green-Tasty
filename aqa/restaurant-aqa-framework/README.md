@@ -6,8 +6,9 @@ This directory is part of the public-submission repository
 [AI-Marathon-Green-Tasty](https://github.com/olhalukianova7-create/AI-Marathon-Green-Tasty).
 Repository visibility still needs to be verified before submission.
 Tests target our deployed application. Smoke checks are verified; all 12 Level 1
-cases passed locally against the deployed application. Levels 2–3 and optional ReportPortal
-integration remain incomplete.
+cases passed locally against the deployed application. Level 2 regression checks,
+deployment, and all 14 local cases passed; combined cloud verification is pending. Level 3 is deferred
+at the user's request; optional ReportPortal integration remains incomplete.
 
 Initial local verification against the deployed application: **4 passed, 0 failed,
 0 skipped**, reported on 3 November 2026. GitHub CI subsequently passed; AWS
@@ -15,7 +16,13 @@ CodeBuild build 1 and its report were confirmed successful on 4 November 2026.
 The owner and other customer accounts signed in successfully, and the dedicated
 waiter account's role and restaurant assignment were verified. Level 1 passed in
 separate local runs: **8 API cases and 4 UI cases**, with no failures or skips.
-The standalone UI login check also passed. Level 1 cloud runs remain pending.
+The standalone UI login check also passed. GitHub Actions run `41745144764`
+completed **16/16 cases** (4 Smoke + 12 Level1), verified from its downloaded TRX
+artifact. The corresponding combined AWS CodeBuild run was confirmed successful
+by the user. On 4 November 2026, the Level 2 deployment script completed and the user
+reported **14 passed, 0 failed, 0 skipped** in 123.2 seconds: 13 cases against the
+deployed app plus one isolated API contract. GitHub Actions and AWS CodeBuild still
+need to verify the combined 30-case suite.
 
 ## Dedicated account setup
 
@@ -74,6 +81,9 @@ AQA_TEST_FILTER='Category=Smoke&Layer=UI' bash scripts/run-tests.sh
 AQA_TEST_FILTER='Category=Level1&Layer=API' bash scripts/run-tests.sh
 AQA_TEST_FILTER='Category=Level1&Layer=UI' bash scripts/run-tests.sh
 AQA_TEST_FILTER='Category=Level1' bash scripts/run-tests.sh
+AQA_TEST_FILTER='Category=Level2' bash scripts/run-tests.sh
+AQA_TEST_FILTER='Category=Level2&Layer=API' bash scripts/run-tests.sh
+AQA_TEST_FILTER='Category=Level2&Layer=UI' bash scripts/run-tests.sh
 ```
 
 Smoke tests create no accounts, reservations, carts, or other persistent data.
@@ -139,9 +149,10 @@ python3 aqa/restaurant-aqa-framework/scripts/configure-ci-accounts.py --github
 ```
 
 Only after all secrets are saved does it set the repository's default filter to
-`Category=Smoke|Category=Level1` (**16 cases**). Push the workflow and tests afterward.
+`Category=Smoke|Category=Level1|Category=Level2` (**30 cases**). Enable this after
+deploying the Level 2 prerequisites and verifying local live tests. Push the workflow and tests afterward.
 Pull requests always run Smoke without the dedicated-account secrets. Manual Actions
-runs can choose Smoke, Level1, or both from the suite dropdown.
+runs can select a level or a combined suite from the dropdown.
 
 For AWS, use the same helper with a different explicit destination:
 
@@ -156,9 +167,9 @@ never receives the credential values. The external secret uses the AWS-managed
 Secrets Manager key and is not deleted by Terraform.
 
 Plan and apply the `aqa/aws` configuration update. CodeBuild receives secret references,
-permission to read this specific secret, and the combined 16-case filter. Commit and
+permission to read this specific secret, and the combined 30-case filter. Commit and
 push the changes before `bash aqa/aws/run-tests.sh`, since it archives committed code.
-Verify the cloud reports before marking Level 1 cloud execution complete.
+The combined GitHub report has been verified and the AWS run confirmed successful.
 
 ## Current coverage
 
@@ -238,15 +249,78 @@ References: [Playwright setup](https://playwright.dev/dotnet/docs/intro),
 [CodeBuild runtimes](https://docs.aws.amazon.com/codebuild/latest/userguide/available-runtimes.html),
 [CodeBuild buildspec and reports](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html).
 
-## Remaining homework increments
+## Level 2: consolidated submission
 
-1. **Level 1:** create reservations and guest baskets; verify owner participant views,
+There are **14 Level 2 cases**: 10 live HTTP API cases, three UI cases, and one
+isolated API-handler contract case. All 14 passed locally after the backend and
+frontend deployment. The combined cloud suite will contain **30 cases**
+(4 Smoke + 12 Level1 + 14 Level2); the account-setup login check is excluded.
+
+| Layer | Coverage |
+| --- | --- |
+| API | Confirmed owner quantity 1 and guest quantities 2 and 3 aggregate into quantity 6; draft quantity 7 is excluded; waiter sees the order and both statuses are verified |
+| API | No confirmed cart, missing order, nonexistent reservation, nonexistent group: separate scenarios and expected messages |
+| API | Other customer/waiter receive 403; guest token/anonymous caller receive 401; rejected requests preserve order/group states |
+| API | Repeat submission returns 400 (`Group reservation was submitted.`) without duplicating dishes |
+| UI | Owner sees their basket, confirms the submitted-only Order Total and sees Sent to Restaurant; assigned waiter sees the identical dish/quantity in a separate browser context |
+| UI | Submit remains disabled without confirmed baskets; missing order produces a visible error |
+| Isolated API contract | Confirmed but empty basket returns 400 (`Submitted guest sessions contain no dishes.`) without order/group writes |
+
+The public API rejects confirming empty carts and editing confirmed carts, so the
+empty-confirmed state is unreachable through normal requests. That single defensive
+case runs the real handler/service with isolated repositories; **it is not a deployed
+end-to-end test**. The AQA project references the backend for this contract. AWS source
+archives include the tracked API-handler project as well as the framework.
+
+This increment connects an owner's existing nonempty pre-order to a stable group
+basket on owner-session lookup, preserving its initial draft/confirmed state.
+Existing owner baskets are reused; no owner order retains the 404 contract.
+Guest capacity excludes the stored owner session, since the owner place is already
+reserved. Full invitation details remain readable; joining still enforces capacity.
+The waiter page supports `?reservationId=...` and prioritizes that link over stale
+session storage. These backend/frontend changes require deployment.
+
+Fixtures use native order APIs for the owner's basket and have the configured waiter
+create reservations for the owner when assigned-waiter verification is needed.
+Cleanup removes tracked owner/guest sessions, cancels created orders, and cancels
+reservations. Historical records and order notifications remain where no public
+permanent-deletion API exists.
+
+Run this pre-deployment regression batch from the repository root:
+
+```bash
+bash aqa/restaurant-aqa-framework/scripts/verify-level2.sh
+```
+
+It runs relevant backend regressions, frontend homework tests including the waiter
+deep link, and the isolated contract. It creates no live reservations. After these
+pass, deploy the backend/frontend, run `Category=Level2`, then enable and verify the
+30-case cloud suite. Full test execution requires the user's terminal because the
+agent session restricts test-runner sockets and outbound network access.
+
+After pre-deployment checks pass, deploy this checkout to the existing AWS environment
+and run all 14 Level 2 cases:
+
+```bash
+bash aqa/restaurant-aqa-framework/scripts/deploy-level2.sh
+```
+
+The script verifies the AWS project and Lambda runtime/architecture, builds both apps,
+uploads a versioned backend package to the existing AQA artifact bucket, updates
+`api-handler` using its revision ID, uploads the frontend, and waits for CloudFront
+invalidation. Live tests create temporary reservations using the configured accounts.
+Their reports are written to `TestResults/level2`. GitHub and CodeBuild verification
+remain separate steps after this deployment passes.
+
+## Homework progress
+
+1. **Level 1 — complete:** create reservations and guest baskets; verify owner participant views,
    quantities, totals and updates, pending/empty carts, empty groups, missing groups,
    and restrictions for other customers, guests, waiters, and anonymous users.
-2. **Level 2:** consolidate only confirmed carts (including the owner's); verify dish
+2. **Level 2 — deployed, local checks passed, cloud verification pending:** consolidate only confirmed carts (including the owner's); verify dish
    aggregation, group/order status, waiter visibility, each rejection condition,
    repeated submission, and owner-only submission.
-3. **Level 3:** remove participants; verify totals, confirmed and last participants,
+3. **Level 3 — deferred:** remove participants; verify totals, confirmed and last participants,
    cross-group HTTP 400, missing-participant HTTP 404, role restrictions, and the
    complete remove → submit → waiter workflow.
 4. Use unique data, dynamic future dates, independent fixtures, and cleanup for all

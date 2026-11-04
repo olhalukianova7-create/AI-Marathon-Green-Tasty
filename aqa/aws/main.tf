@@ -234,7 +234,7 @@ resource "aws_codebuild_project" "aqa" {
     }
     environment_variable {
       name  = "AQA_TEST_FILTER"
-      value = var.account_secret_arn == "" ? "Category=Smoke" : "Category=Smoke|Category=Level1"
+      value = var.account_secret_arn == "" ? "Category=Smoke" : "Category=Smoke|Category=Level1|Category=Level2"
     }
     dynamic "environment_variable" {
       for_each = var.account_secret_arn == "" ? toset([]) : toset([

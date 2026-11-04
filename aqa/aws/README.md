@@ -80,7 +80,9 @@ python3 aqa/restaurant-aqa-framework/scripts/configure-ci-accounts.py --aws
 This creates or updates a Secrets Manager secret and writes only its ARN to ignored
 `terraform.tfvars`. The optional `account_secret_arn` enables six CodeBuild secret
 references and read permission scoped to that secret. Without the ARN, CodeBuild runs
-four smoke cases. With it, CodeBuild runs Smoke plus Level1 (**16 cases**).
+four smoke cases. With it, the revised CodeBuild configuration selects Smoke,
+Level1, and Level2 (**30 cases**). Apply that revision only after deploying and
+verifying the Level 2 prerequisites. The earlier 16-case Level 1 suite passed.
 The secret is managed outside Terraform, so its values never enter Terraform state.
 
 ## Validate, review, deploy
@@ -126,7 +128,7 @@ start the first AWS build from the repository root:
 bash aqa/aws/run-tests.sh
 ```
 
-The script uploads only the committed framework directory, pins the input to the
+The script uploads the committed framework and API-handler project directories, pins the input to the
 returned S3 version ID, and prints the build ID and console URL. It refuses to
 run while AQA files have uncommitted changes. It uses Terraform's local outputs
 to find the bucket and project, and AWS CLI profile `aws-toolkit` for upload/start.

@@ -19,13 +19,14 @@ public sealed class GroupScenario : IAsyncDisposable
     public string RunId { get; } = Guid.NewGuid().ToString("N")[..8];
     private readonly ITestOutputHelper output;
     private readonly List<string> guestIds = [];
+    private bool hasNativeOrder;
 
     private GroupScenario(ITestOutputHelper output) => this.output = output;
 
-    public static async Task<GroupScenario> CreateAsync(ITestOutputHelper output)
+    public static async Task<GroupScenario> CreateAsync(ITestOutputHelper output, bool assignConfiguredWaiter = false)
     {
         var scenario = new GroupScenario(output);
-        try { await scenario.PrepareAsync(); return scenario; }
+        try { await scenario.PrepareAsync(assignConfiguredWaiter); return scenario; }
         catch
         {
             // Cleanup also runs if setup failed after the reservation was created.
@@ -35,7 +36,7 @@ public sealed class GroupScenario : IAsyncDisposable
         }
     }
 
-    private async Task PrepareAsync()
+    private async Task PrepareAsync(bool assignConfiguredWaiter)
     {
         OwnerToken = await Api.SignInAsync(Environment.Account("OWNER"));
         OtherToken = await Api.SignInAsync(Environment.Account("OTHER_CUSTOMER"));
@@ -62,8 +63,9 @@ public sealed class GroupScenario : IAsyncDisposable
                 $"available-tables?locationId={Uri.EscapeDataString(location.LocationId)}&capacity=4&startTime={Uri.EscapeDataString(start.ToString("O"))}");
             if (tables.Length == 0) continue;
             var table = tables[Random.Shared.Next(tables.Length)];
-            using var response = await Api.SendAsync(HttpMethod.Post, "reservations", OwnerToken,
-                new { tableId = table.Id, startTime = start, endTime = start.AddMinutes(90), guestCount = 4 });
+            using var response = await Api.SendAsync(HttpMethod.Post, "reservations", assignConfiguredWaiter ? WaiterToken : OwnerToken,
+                new { tableId = table.Id, startTime = start, endTime = start.AddMinutes(90), guestCount = 4,
+                    customerEmail = assignConfiguredWaiter ? Environment.Account("OWNER").Email : null });
             if (response.StatusCode == HttpStatusCode.BadRequest)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -111,6 +113,68 @@ public sealed class GroupScenario : IAsyncDisposable
         throw new InvalidOperationException("Participant snapshot did not reach the expected state within 15 seconds.");
     }
 
+    public async Task CreateOrderAsync()
+    {
+        using var response = await Api.SendAsync(HttpMethod.Post, "orders", OwnerToken,
+            new { reservationId = ReservationId, orderItems = new[] { new { dishId = Dish.Id, quantity = 1, state = 0 } } });
+        GroupApi.RequireStatus(response, HttpStatusCode.Created, "Create owner's test pre-order");
+        hasNativeOrder = true;
+        await WaitForOrderAsync(order => order.Status == 0);
+    }
+
+    public async Task ImportOwnerBasketAsync(bool confirmed)
+    {
+        if (!hasNativeOrder) await CreateOrderAsync();
+        if (confirmed)
+        {
+            using var submitted = await Api.SendAsync(HttpMethod.Post, $"orders/{ReservationId}/submit", OwnerToken);
+            GroupApi.RequireStatus(submitted, HttpStatusCode.OK, "Confirm owner's basket");
+            await WaitForOrderAsync(order => order.Status == 3);
+        }
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        do
+        {
+            using var response = await Api.SendAsync(HttpMethod.Get, $"reservations/{ReservationId}/guest-session-id", OwnerToken);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                var id = (await GroupApi.ReadAsync<OwnerSessionId>(response)).GuestSessionId;
+                if (!guestIds.Contains(id)) guestIds.Add(id);
+                await WaitForSnapshotAsync(s => s.Participants.Any(p => p.Id == id && p.Type == "Owner" && p.IsSubmitted == confirmed));
+                return;
+            }
+            GroupApi.RequireStatus(response, HttpStatusCode.NotFound, "Resolve owner basket");
+            await Task.Delay(300);
+        } while (DateTime.UtcNow < deadline);
+        throw new InvalidOperationException("Owner basket was not created. Deploy the Level 2 backend changes before running this scenario.");
+    }
+
+    public async Task<GuestIdentity> ConfirmGuestAsync(string name, int quantity)
+    {
+        var guest = await JoinAsync(name);
+        await Api.AddDishAsync(guest, Dish.Id, quantity);
+        await WaitForSnapshotAsync(s => s.Participants.Any(p => p.Id == guest.SessionId && p.Total == Dish.Price * quantity));
+        await Api.SubmitGuestAsync(guest);
+        await WaitForSnapshotAsync(s => s.Participants.Any(p => p.Id == guest.SessionId && p.IsSubmitted));
+        return guest;
+    }
+
+    public async Task<OrderSnapshot> WaitForOrderAsync(Func<OrderSnapshot, bool> predicate, string? token = null)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        do
+        {
+            using var response = await Api.SendAsync(HttpMethod.Get, $"orders/{ReservationId}", token ?? OwnerToken);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                var order = await GroupApi.ReadAsync<OrderSnapshot>(response);
+                if (predicate(order)) return order;
+            }
+            else GroupApi.RequireStatus(response, HttpStatusCode.NotFound, "Read prepared order");
+            await Task.Delay(300);
+        } while (DateTime.UtcNow < deadline);
+        throw new InvalidOperationException("Order did not reach its expected state within 15 seconds.");
+    }
+
     public async ValueTask DisposeAsync()
     {
         var errors = new List<string>();
@@ -128,6 +192,15 @@ public sealed class GroupScenario : IAsyncDisposable
             }
             if (!string.IsNullOrEmpty(ReservationId))
             {
+                if (hasNativeOrder)
+                {
+                    try
+                    {
+                        using var response = await Api.SendAsync(HttpMethod.Delete, $"orders/{ReservationId}", OwnerToken);
+                        GroupApi.RequireStatus(response, HttpStatusCode.OK, "Cancel test pre-order during cleanup");
+                    }
+                    catch (Exception ex) { errors.Add(ex.Message); }
+                }
                 try
                 {
                     using var response = await Api.SendAsync(HttpMethod.Delete, "reservations", OwnerToken, new { id = ReservationId });

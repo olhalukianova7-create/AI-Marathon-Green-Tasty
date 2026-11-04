@@ -22,7 +22,8 @@ trap 'rm -f -- "$source_archive"; rmdir -- "$work_directory"' EXIT
 
 # Archive only committed test sources, including the expected repository-relative path.
 # Local .env, Terraform state, provider files and test artifacts are never included.
-git -C "$repository_directory" archive --format=zip --output="$source_archive" HEAD aqa/restaurant-aqa-framework
+git -C "$repository_directory" archive --format=zip --output="$source_archive" HEAD \
+  aqa/restaurant-aqa-framework backend/restaurant-backend-app/dnapp/lambdas/api-handler
 
 echo "Uploading test source from commit $commit_id"
 source_version="$(aws s3api put-object \
