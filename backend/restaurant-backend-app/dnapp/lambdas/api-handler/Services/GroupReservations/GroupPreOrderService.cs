@@ -24,33 +24,8 @@ public class GroupPreOrderService(
         var group = await groupReservationRepository.GetByReservationIdAsync(reservationId)
             ?? throw new GroupReservationNotFoundException();
         var sessions = await guestSessionRepository.GetAllByGroupReservationIdAsync(group.GroupReservationId);
-        var ownerSession = sessions.FirstOrDefault(s => s.IsOwnerSession && s.OwnerUserId == userId);
-        if (ownerSession is null)
-        {
-            // A customer's existing individual pre-order is their group basket.
-            // Groups with no owner pre-order retain the existing 404 contract.
-            var order = await orderRepository.GetOrderByReservationIdAsync(reservationId);
-            if (group.Status != GroupReservationStatus.Open || order is null
-                || order.CustomerId != userId || order.Dishes.Count == 0
-                || order.Status is not (OrderStatus.Created or OrderStatus.SubmittedByCustomer))
-                throw new GuestSessionNotFoundException("Owner session was not found.");
-
-            // Stable identity prevents duplicate owner entries if two reads race.
-            ownerSession = new GuestSession
-            {
-                Id = $"owner-{group.GroupReservationId}",
-                GroupReservationId = group.GroupReservationId,
-                GuestName = "Owner",
-                IsOwnerSession = true,
-                OwnerUserId = userId,
-                IsSubmitted = order.Status == OrderStatus.SubmittedByCustomer,
-                Dishes = order.Dishes.Select(d => new OrderItem
-                {
-                    DishId = d.DishId, Quantity = d.Quantity, State = d.State
-                }).ToList()
-            };
-            await guestSessionRepository.SaveAsync(ownerSession);
-        }
+        var ownerSession = sessions.FirstOrDefault(s => s.IsOwnerSession && s.OwnerUserId == userId)
+            ?? throw new GuestSessionNotFoundException("Owner session was not found.");
 
         return new GetOwnerSessionIdResponse(ownerSession.Id);
     }

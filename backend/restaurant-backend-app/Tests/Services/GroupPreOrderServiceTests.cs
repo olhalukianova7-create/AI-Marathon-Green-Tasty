@@ -94,37 +94,6 @@ public class GroupPreOrderServiceTests
         await Assert.ThrowsAsync<GuestSessionNotFoundException>(() => _service.GetOwnerSessionIdAsync("owner", "reservation"));
     }
 
-    [Theory]
-    [InlineData(OrderStatus.Created, false)]
-    [InlineData(OrderStatus.SubmittedByCustomer, true)]
-    public async Task LookupConnectsExistingOwnerOrderToGroupBasket(OrderStatus status, bool submitted)
-    {
-        _order.Status = status;
-        _order.Dishes = [new OrderItem { DishId = "dish1", Quantity = 2 }];
-        GuestSession? saved = null;
-        _sessions.Setup(s => s.SaveAsync(It.IsAny<GuestSession>()))
-            .Callback<GuestSession>(session => saved = session);
-
-        var result = await _service.GetOwnerSessionIdAsync("owner", "reservation");
-
-        Assert.Equal("owner-group", result.GuestSessionId);
-        Assert.NotNull(saved);
-        Assert.True(saved.IsOwnerSession);
-        Assert.Equal("owner", saved.OwnerUserId);
-        Assert.Equal(submitted, saved.IsSubmitted);
-        Assert.Equal(2, Assert.Single(saved.Dishes).Quantity);
-        Assert.NotSame(_order.Dishes[0], saved.Dishes[0]);
-    }
-
-    [Fact]
-    public async Task LookupDoesNotImportAnotherCustomersOrder()
-    {
-        _order.CustomerId = "other";
-        _order.Dishes = [new OrderItem { DishId = "dish1", Quantity = 2 }];
-        await Assert.ThrowsAsync<GuestSessionNotFoundException>(() => _service.GetOwnerSessionIdAsync("owner", "reservation"));
-        _sessions.Verify(s => s.SaveAsync(It.IsAny<GuestSession>()), Times.Never);
-    }
-
     [Fact]
     public async Task SubmitCombinesOnlySubmittedSessionsAndSetsBothStatuses()
     {

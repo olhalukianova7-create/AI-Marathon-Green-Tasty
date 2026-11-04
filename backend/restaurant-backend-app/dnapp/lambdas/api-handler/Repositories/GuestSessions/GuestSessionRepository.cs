@@ -58,7 +58,7 @@ public class GuestSessionRepository(IDynamoDBContext context) : IGuestSessionRep
             IndexName = GlobalSecondaryIndexes.GuestSession.GroupReservationId
         }).GetRemainingAsync();
 
-        return result.Count(session => !session.IsOwnerSession);
+        return result.Count;
     }
 
     public async Task DeleteAsync(GuestSession session)

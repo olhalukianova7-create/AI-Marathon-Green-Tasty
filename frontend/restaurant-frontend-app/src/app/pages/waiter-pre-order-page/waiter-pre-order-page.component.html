@@ -5,14 +5,9 @@
 </nav>
 
 <h2 class="title">
-  @if (createdByRole && createdByName) {
   Pre-order of {{ createdByRole.toLowerCase() }} {{ createdByName }}, Table {{ tableName }} ({{
     reservationTime
   }})
-  } @else {
-    Pre-order @if (reservationLabel) { — {{ reservationLabel }} }
-    @if (reservationTime) { ({{ reservationTime }}) }
-  }
 </h2>
 <div class="preorder-list">
   @for (item of orderItems; track item.dish.id) {

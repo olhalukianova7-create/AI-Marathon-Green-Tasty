@@ -10,9 +10,7 @@ on:
         options:
           - 'Category=Smoke'
           - 'Category=Level1'
-          - 'Category=Level2'
           - 'Category=Smoke|Category=Level1'
-          - 'Category=Smoke|Category=Level1|Category=Level2'
   push:
     branches: [main]
     paths:

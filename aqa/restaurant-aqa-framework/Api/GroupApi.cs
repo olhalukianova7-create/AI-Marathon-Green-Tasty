@@ -50,9 +50,6 @@ public sealed class GroupApi : IDisposable
     public Task<ParticipantsSnapshot> ParticipantsAsync(string groupId, string token) =>
         GetAsync<ParticipantsSnapshot>($"guest/groups/{Uri.EscapeDataString(groupId)}/sessions", token);
 
-    public Task<HttpResponseMessage> SubmitGroupAsync(string groupId, string reservationId, string? token) =>
-        SendAsync(HttpMethod.Post, $"group-reservations/{Uri.EscapeDataString(groupId)}/submit", token, new { reservationId });
-
     public async Task<GuestIdentity> JoinAsync(string groupId, string name)
     {
         using var response = await SendAsync(HttpMethod.Post, "guest/sessions", body: new { GroupReservationId = groupId, GuestName = name });
@@ -104,7 +101,3 @@ public sealed record GroupInvite(string GroupReservationId);
 public sealed record ParticipantsSnapshot(ParticipantSnapshot[] Participants, decimal Total);
 public sealed record ParticipantSnapshot(string Id, string Type, string Name, BasketItem[] Items, decimal Total, bool IsSubmitted);
 public sealed record BasketItem(TestDish Dish, int Quantity);
-public sealed record OwnerSessionId(string GuestSessionId);
-public sealed record ConsolidatedDish(string DishId, int Quantity);
-public sealed record GroupStatusResult(string Status);
-public sealed record OrderSnapshot(string OrderId, string ReservationId, BasketItem[] OrderItems, int Status);

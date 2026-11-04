@@ -44,11 +44,6 @@ export class WaiterPreOrderPageComponent implements OnInit {
       | undefined;
     let data = navState;
 
-    const linkedReservationId = this.route.snapshot.queryParamMap.get('reservationId');
-    if (linkedReservationId) {
-      data = { reservationId: linkedReservationId, createdByName: '', createdByRole: '', tableName: '' };
-    }
-
     if (!data?.reservationId) {
       const stored = sessionStorage.getItem('waiterPreOrderData');
       if (stored) {
@@ -73,7 +68,6 @@ export class WaiterPreOrderPageComponent implements OnInit {
         console.log('ORDER FROM SERVER:', JSON.stringify(order, null, 2));
 
         this.orderItems = order.orderItems ?? [];
-        this.reservationLabel = order.reservationAddress || '';
         this.reservationTime = order.reservationTime || '';
         // this.refreshOrder();
       })

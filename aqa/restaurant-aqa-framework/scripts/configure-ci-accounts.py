@@ -27,10 +27,10 @@ def github(values):
             raise RuntimeError("Could not configure GitHub secret " + key + ". Check gh auth status.")
         print("Configured GitHub secret: " + key)
     result = execute(["gh", "variable", "set", "AQA_TEST_FILTER", "--repo", REPOSITORY,
-                      "--body", "Category=Smoke|Category=Level1|Category=Level2"])
+                      "--body", "Category=Smoke|Category=Level1"])
     if result.returncode:
         raise RuntimeError("Secrets are configured, but setting the default test suite failed.")
-    print("GitHub default suite: Smoke + Level1 + Level2 (30 cases). Pull requests remain smoke-only.")
+    print("GitHub default suite: Smoke + Level1 (16 cases). Pull requests remain smoke-only.")
 
 
 def aws(values):
