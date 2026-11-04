@@ -5,12 +5,42 @@
 This directory is part of the public-submission repository
 [AI-Marathon-Green-Tasty](https://github.com/olhalukianova7-create/AI-Marathon-Green-Tasty).
 Repository visibility still needs to be verified before submission.
-Tests target our deployed application. The first increment establishes smoke checks;
-it does **not** complete homework Levels 1–3 or the optional ReportPortal integration.
+Tests target our deployed application. Smoke checks are verified; all 12 Level 1
+cases passed locally against the deployed application. Levels 2–3 and optional ReportPortal
+integration remain incomplete.
 
 Initial local verification against the deployed application: **4 passed, 0 failed,
-0 skipped**, reported on 3 November 2026. GitHub CI and the AWS test runner still
-need their first verified runs.
+0 skipped**, reported on 3 November 2026. GitHub CI subsequently passed; AWS
+CodeBuild build 1 and its report were confirmed successful on 4 November 2026.
+The owner and other customer accounts signed in successfully, and the dedicated
+waiter account's role and restaurant assignment were verified. Level 1 passed in
+separate local runs: **8 API cases and 4 UI cases**, with no failures or skips.
+The standalone UI login check also passed. Level 1 cloud runs remain pending.
+
+## Dedicated account setup
+
+Register three distinct application accounts: the reservation owner, another customer,
+and the future waiter. Reuse the owner's actual profile name; names are read from `/me`.
+Fill their email/password fields in the private `.env`. Do not put credentials in chat
+or commit them. From the repository root, run the read-only readiness check:
+
+```bash
+python3 aqa/restaurant-aqa-framework/scripts/prepare-accounts.py --check
+```
+
+It verifies sign-in and customer roles, lists restaurant locations, and reports the
+waiter's existing role and location. It does not print passwords or tokens.
+To promote only the configured waiter, explicitly choose an existing location:
+
+```bash
+python3 aqa/restaurant-aqa-framework/scripts/prepare-accounts.py \
+  --promote-waiter --location-id <location-id>
+```
+
+This uses the application's `POST /waiters` setup operation to add the Cognito group
+and location record, then signs in again to verify both. It preserves an existing
+assignment and refuses to move a waiter to another location. Account setup is a local
+administrative operation; it is not run automatically by test CI.
 
 ## Configure and run locally
 
@@ -41,11 +71,94 @@ Subsets:
 ```bash
 AQA_TEST_FILTER='Category=Smoke&Layer=API' bash scripts/run-tests.sh
 AQA_TEST_FILTER='Category=Smoke&Layer=UI' bash scripts/run-tests.sh
+AQA_TEST_FILTER='Category=Level1&Layer=API' bash scripts/run-tests.sh
+AQA_TEST_FILTER='Category=Level1&Layer=UI' bash scripts/run-tests.sh
+AQA_TEST_FILTER='Category=Level1' bash scripts/run-tests.sh
 ```
 
-Level tags will be added with their scenarios. Current tests create no accounts,
-reservations, carts, or other persistent data, and each UI scenario has its own browser
-context. Separate test classes can execute in parallel.
+Smoke tests create no accounts, reservations, carts, or other persistent data.
+Level 1 uses dedicated preexisting accounts and creates its own future reservations
+and guest sessions. Each UI scenario has its own browser context. Separate test
+classes can execute in parallel; no test depends on another test's data or order.
+
+## Level 1: participants and totals
+
+There are **12 Level 1 cases: eight API and four UI cases**. API setup creates each
+reservation, obtains an invitation, creates guest sessions, and prepares baskets.
+The UI tests sign in through the real login form and exercise the owner review page;
+booking and guest basket preparation use the API. These cases do not claim to cover
+the booking or guest-entry UI flows.
+
+| Layer | Coverage |
+| --- | --- |
+| API | Confirmed, unconfirmed, and empty guest baskets; names, dishes, quantities, prices, statuses, participant totals, and group sum |
+| API | Basket quantity changes update participant and group totals |
+| API | Empty group returns `participants: []` and `total: 0` |
+| API | Other customer and waiter receive 403; guest token and anonymous caller receive 401 on an existing populated group, without leaking basket data |
+| API | Authenticated owner receives 404 for a nonexistent group |
+| UI | Owner sees guest dishes, quantities, subtotals, and confirmed/pending labels |
+| UI | Empty guest basket stays visible with its pending status |
+| UI | Empty group shows zero participants and zero total |
+| UI | Grand Total includes all participant baskets and updates after a guest changes a basket and the owner refreshes |
+
+Prerequisites: fill all six dedicated-account fields in private `.env`, assign the
+waiter a restaurant, and have an available dish with a positive price and a table
+with capacity at least four at that restaurant. Fixture dates use UTC now plus
+7–28 days, with random daytime offsets; reservations last 90 minutes. Data names
+include a unique run ID. Bounded polling waits for eventually consistent indexes;
+reservation creation retries only explicit overlap conflicts.
+
+Cleanup removes each created guest session and cancels the created reservation,
+including when setup partially fails. Cancellation releases the table and removes
+the reservation from the waiter's active list. The public API has no permanent
+reservation deletion operation: cancelled reservation/group history remains. Unique
+future slots and run IDs prevent subsequent runs from depending on that history.
+Cleanup failures fail the test rather than silently leaving active reservations.
+
+Two frontend changes were deployed before the successful Level 1 UI run:
+
+- A missing optional owner basket (HTTP 404) no longer blocks review of a new group;
+  other authorization and server errors still propagate.
+- The owner page's Grand Total includes every participant basket, as the AQA task
+  requires. The consolidated order and submission dialog's Order Total still count
+  only confirmed baskets. This supersedes the earlier frontend exercise's
+  submitted-only Grand Total display; no submission payload logic changed.
+
+The .NET suite compiles and frontend TypeScript checks pass. Live Level 1 runs passed
+**8/8 API** and **4/4 UI** cases, and the frontend regression suite passed **81** tests.
+Cloud jobs default to Smoke until the dedicated account secrets are configured.
+
+## Configure account secrets for cloud tests
+
+From the repository root, use the private `.env` to configure this repository's six
+Actions secrets. The helper sends values through stdin rather than command arguments
+and prints only field names:
+
+```bash
+python3 aqa/restaurant-aqa-framework/scripts/configure-ci-accounts.py --github
+```
+
+Only after all secrets are saved does it set the repository's default filter to
+`Category=Smoke|Category=Level1` (**16 cases**). Push the workflow and tests afterward.
+Pull requests always run Smoke without the dedicated-account secrets. Manual Actions
+runs can choose Smoke, Level1, or both from the suite dropdown.
+
+For AWS, use the same helper with a different explicit destination:
+
+```bash
+python3 aqa/restaurant-aqa-framework/scripts/configure-ci-accounts.py --aws
+```
+
+This creates or updates `green-tasty-aqa/accounts` in Secrets Manager in `eu-north-1`,
+using AWS profile `aws-toolkit`. A private temporary file is removed after use, and
+only the secret ARN is recorded in ignored `aqa/aws/terraform.tfvars`. Terraform
+never receives the credential values. The external secret uses the AWS-managed
+Secrets Manager key and is not deleted by Terraform.
+
+Plan and apply the `aqa/aws` configuration update. CodeBuild receives secret references,
+permission to read this specific secret, and the combined 16-case filter. Commit and
+push the changes before `bash aqa/aws/run-tests.sh`, since it archives committed code.
+Verify the cloud reports before marking Level 1 cloud execution complete.
 
 ## Current coverage
 
@@ -75,6 +188,9 @@ pwsh ./bin/Release/net10.0/playwright.ps1 show-trace TestResults/failures/<scena
 Build, dependency-installation, or browser-launch failures appear in runner logs;
 screenshots and traces require a successfully started browser.
 Reports and traces may contain application data; keep downloaded artifacts private.
+UI sign-in runs outside the retained trace to avoid saving password entry and login
+request bodies. Authenticated traces can still contain session headers and must
+be treated as sensitive.
 
 ## GitHub Actions
 
@@ -96,8 +212,9 @@ The GitHub connection was created and authorized, but AWS Organizations denied
 CodeConnections access from CodeBuild and denied OIDC-provider discovery. The runner
 therefore uses an S3 source archive submitted through the existing CLI login.
 GitHub CI is automatic; AWS runs are started manually using `bash aqa/aws/run-tests.sh`
-from the repository root. **The revised CodeBuild project has not yet been deployed
-or verified**. Follow the Terraform setup in `../aws` for deployment.
+from the repository root. **The revised CodeBuild project is deployed, and its
+first smoke build and report passed**. Follow the Terraform setup in `../aws`
+to reproduce the deployment.
 
 When provisioning the runner:
 

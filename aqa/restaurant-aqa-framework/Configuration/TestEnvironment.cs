@@ -13,6 +13,13 @@ public sealed class TestEnvironment
     public Uri ApiBaseUrl => RequiredUrl("AQA_API_BASE_URL");
     public bool Headless => !string.Equals(Value("AQA_HEADLESS"), "false", StringComparison.OrdinalIgnoreCase);
 
+    public TestAccount Account(string role) => new(
+        RequiredValue($"AQA_{role}_EMAIL"), RequiredValue($"AQA_{role}_PASSWORD"));
+
+    private string RequiredValue(string name) => !string.IsNullOrWhiteSpace(Value(name))
+        ? Value(name)!
+        : throw new InvalidOperationException($"Set {name} in private .env or CI secrets before running Level 1.");
+
     public string ResultsDirectory => Path.GetFullPath(
         Value("AQA_RESULTS_DIR") ?? Path.Combine(Directory.GetCurrentDirectory(), "TestResults"));
 
@@ -80,4 +87,12 @@ public sealed class TestEnvironment
         }
         return null;
     }
+}
+
+// Avoid record-generated ToString(), which would disclose the password in diagnostics.
+public sealed class TestAccount(string email, string password)
+{
+    public string Email { get; } = email;
+    public string Password { get; } = password;
+    public override string ToString() => "Dedicated test account";
 }

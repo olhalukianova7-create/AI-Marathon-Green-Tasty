@@ -2,6 +2,15 @@ name: Restaurant AQA
 
 on:
   workflow_dispatch:
+    inputs:
+      test_filter:
+        description: Test suite
+        type: choice
+        default: 'Category=Smoke'
+        options:
+          - 'Category=Smoke'
+          - 'Category=Level1'
+          - 'Category=Smoke|Category=Level1'
   push:
     branches: [main]
     paths:
@@ -28,6 +37,13 @@ jobs:
       AQA_UI_BASE_URL: ${{ vars.AQA_UI_BASE_URL }}
       AQA_API_BASE_URL: ${{ vars.AQA_API_BASE_URL }}
       AQA_RESULTS_DIR: ${{ github.workspace }}/aqa/restaurant-aqa-framework/TestResults
+      AQA_TEST_FILTER: ${{ github.event_name == 'pull_request' && 'Category=Smoke' || inputs.test_filter || vars.AQA_TEST_FILTER || 'Category=Smoke' }}
+      AQA_OWNER_EMAIL: ${{ github.event_name != 'pull_request' && secrets.AQA_OWNER_EMAIL || '' }}
+      AQA_OWNER_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.AQA_OWNER_PASSWORD || '' }}
+      AQA_OTHER_CUSTOMER_EMAIL: ${{ github.event_name != 'pull_request' && secrets.AQA_OTHER_CUSTOMER_EMAIL || '' }}
+      AQA_OTHER_CUSTOMER_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.AQA_OTHER_CUSTOMER_PASSWORD || '' }}
+      AQA_WAITER_EMAIL: ${{ github.event_name != 'pull_request' && secrets.AQA_WAITER_EMAIL || '' }}
+      AQA_WAITER_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.AQA_WAITER_PASSWORD || '' }}
     defaults:
       run:
         working-directory: aqa/restaurant-aqa-framework
@@ -45,7 +61,7 @@ jobs:
       - name: Install Chromium
         shell: pwsh
         run: ./bin/Release/net10.0/playwright.ps1 install --with-deps chromium
-      - name: Run smoke tests
+      - name: Run selected tests
         id: tests
         continue-on-error: true
         run: bash scripts/run-tests.sh

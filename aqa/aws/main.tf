@@ -143,7 +143,7 @@ resource "aws_iam_role_policy" "codebuild" {
   role = aws_iam_role.codebuild.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Sid      = "ReadTestSourceArchive"
         Effect   = "Allow"
@@ -180,13 +180,18 @@ resource "aws_iam_role_policy" "codebuild" {
         Action   = ["codebuild:CreateReport", "codebuild:UpdateReport", "codebuild:BatchPutTestCases"]
         Resource = aws_codebuild_report_group.aqa.arn
       }
-    ]
+      ], var.account_secret_arn == "" ? [] : [{
+        Sid      = "ReadDedicatedTestAccounts"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = var.account_secret_arn
+    }])
   })
 }
 
 resource "aws_codebuild_project" "aqa" {
   name                   = var.project_name
-  description            = "Green & Tasty deployed application smoke tests"
+  description            = "Green & Tasty deployed application automation tests"
   service_role           = aws_iam_role.codebuild.arn
   build_timeout          = 15
   queued_timeout         = 15
@@ -226,6 +231,21 @@ resource "aws_codebuild_project" "aqa" {
     environment_variable {
       name  = "AQA_REPORT_GROUP_ARN"
       value = aws_codebuild_report_group.aqa.arn
+    }
+    environment_variable {
+      name  = "AQA_TEST_FILTER"
+      value = var.account_secret_arn == "" ? "Category=Smoke" : "Category=Smoke|Category=Level1"
+    }
+    dynamic "environment_variable" {
+      for_each = var.account_secret_arn == "" ? toset([]) : toset([
+        "AQA_OWNER_EMAIL", "AQA_OWNER_PASSWORD", "AQA_OTHER_CUSTOMER_EMAIL",
+        "AQA_OTHER_CUSTOMER_PASSWORD", "AQA_WAITER_EMAIL", "AQA_WAITER_PASSWORD"
+      ])
+      content {
+        name  = environment_variable.value
+        value = "${var.account_secret_arn}:${environment_variable.value}"
+        type  = "SECRETS_MANAGER"
+      }
     }
   }
 

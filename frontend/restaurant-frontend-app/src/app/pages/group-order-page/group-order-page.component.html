@@ -124,7 +124,7 @@
 
         <footer class="summary">
           <p class="grand-total">
-            <span>Grand Total</span><strong>{{ grandTotal() | currency }}</strong>
+            <span>Grand Total</span><strong>{{ participantsTotal() | currency }}</strong>
           </p>
           @if (submitError()) {
             <p class="submit-error" role="alert">Couldn't send your pre-order. Please try again.</p>
@@ -188,7 +188,7 @@
     >
       <p>Send the submitted carts to the restaurant as one order?</p>
       <p class="confirmation-total">
-        Grand Total <strong>{{ grandTotal() | currency }}</strong>
+        Order Total <strong>{{ grandTotal() | currency }}</strong>
       </p>
       @if (pendingCount()) {
         <p class="notice">{{ pendingMessage() }}</p>

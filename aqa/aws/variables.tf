@@ -22,6 +22,16 @@ variable "project_name" {
   }
 }
 
+variable "account_secret_arn" {
+  type        = string
+  description = "Optional Secrets Manager ARN containing the six AQA account fields. Never put passwords in Terraform."
+  default     = ""
+  validation {
+    condition     = var.account_secret_arn == "" || can(regex("^arn:aws:secretsmanager:eu-north-1:[0-9]{12}:secret:.+$", var.account_secret_arn))
+    error_message = "Use an existing Secrets Manager secret ARN in eu-north-1, or leave empty for smoke tests."
+  }
+}
+
 variable "ui_base_url" {
   type        = string
   description = "Deployed frontend base URL, without a page path or query."

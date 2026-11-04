@@ -55,6 +55,22 @@ describe('Рівень 2 · GroupOrdersService', () => {
     req.flush({ currentParticipants: 3, maxCapacity: 5, status: 'Open' });
   });
 
+  it('a missing owner basket does not prevent reviewing guest carts', () => {
+    let id: string | undefined;
+    service.getOwnerSessionId$('res-1').subscribe((value) => (id = value));
+    http.expectOne(`${BASE_URL}/reservations/res-1/guest-session-id`)
+      .flush({ error: 'Owner session was not found.' }, { status: 404, statusText: 'Not Found' });
+    expect(id).toBe('');
+  });
+
+  it('owner basket authorization failures still propagate', () => {
+    let status: number | undefined;
+    service.getOwnerSessionId$('res-1').subscribe({ error: (error) => (status = error.status) });
+    http.expectOne(`${BASE_URL}/reservations/res-1/guest-session-id`)
+      .flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+    expect(status).toBe(403);
+  });
+
   it('submit$: POST /group-reservations/{id}/submit з тілом { reservationId }', () => {
     service.submit$('grp-1', 'res-1').subscribe();
     const req = http.expectOne(`${BASE_URL}/group-reservations/grp-1/submit`);

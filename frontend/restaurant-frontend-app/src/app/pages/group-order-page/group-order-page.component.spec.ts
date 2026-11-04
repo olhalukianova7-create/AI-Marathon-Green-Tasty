@@ -80,10 +80,20 @@ describe('Рівень 2 · сторінка Owner Review', () => {
   });
 
   describe('консолідоване замовлення — головна пастка', () => {
-    it('Grand Total рахує лише підтверджені кошики: $540, а не $760 з API', () => {
-      const text = create().element.textContent ?? '';
-      expect(text).toContain('$540.00');
-      expect(text).not.toContain('$760.00');
+    it('Grand Total includes every basket; the consolidated order includes only submitted baskets', () => {
+      const { element } = create();
+      expect(element.querySelector('.grand-total strong')?.textContent).toContain('$760.00');
+      expect(element.querySelector('.consolidated')?.textContent).toContain('$540.00');
+    });
+
+    it('the submission dialog shows only the submitted order total', () => {
+      const { fixture, element } = create();
+      buttonByText(element, 'Submit Pre-Order')?.click();
+      fixture.detectChanges();
+      const total = element.querySelector('.confirmation-total');
+      expect(total?.textContent).toContain('Order Total');
+      expect(total?.textContent).toContain('$540.00');
+      expect(total?.textContent).not.toContain('$760.00');
     });
 
     it('однакові страви — одним рядком: «Caesar Salad × 3»', () => {

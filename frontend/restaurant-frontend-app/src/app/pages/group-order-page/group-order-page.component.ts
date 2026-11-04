@@ -77,6 +77,9 @@ export class GroupOrderPageComponent implements OnInit {
   readonly participantCount = computed(() => this.participants().length);
   readonly consolidated = computed(() => consolidatePreOrder(this.participants()));
   readonly grandTotal = computed(() => this.consolidated().total);
+  readonly participantsTotal = computed(() =>
+    this.participants().reduce((total, person) => total + person.total, 0)
+  );
   readonly hasDishes = computed(() =>
     this.participants().some((person) => person.items.length > 0)
   );

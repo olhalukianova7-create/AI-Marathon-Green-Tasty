@@ -5,7 +5,7 @@ This standalone Terraform configuration provisions the Track 1 AQA runner in
 application's Terraform state or backend.
 
 The runner uses a versioned S3 source archive and
-`aqa/restaurant-aqa-framework/buildspec.yml`. The same four smoke tests run in
+`aqa/restaurant-aqa-framework/buildspec.yml`. The same configured suite runs in
 GitHub Actions and AWS. GitHub CI runs automatically on pushes; AWS runs are
 started manually with `bash aqa/aws/run-tests.sh`, which uploads the committed test
 sources and starts CodeBuild. This does not add CodePipeline or complete the
@@ -69,6 +69,19 @@ Terraform defaults to `aws-toolkit-terraform`; resource-management CLI commands
 continue to use `aws-toolkit`. No application account passwords are needed by the
 initial smoke tests. Future credentials must use Secrets Manager references.
 See [AWS's credential-process bridge documentation](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html#cli-configure-sign-in-credentials).
+
+For Level 1, run the following from the repository root after verifying the private
+test-account configuration:
+
+```bash
+python3 aqa/restaurant-aqa-framework/scripts/configure-ci-accounts.py --aws
+```
+
+This creates or updates a Secrets Manager secret and writes only its ARN to ignored
+`terraform.tfvars`. The optional `account_secret_arn` enables six CodeBuild secret
+references and read permission scoped to that secret. Without the ARN, CodeBuild runs
+four smoke cases. With it, CodeBuild runs Smoke plus Level1 (**16 cases**).
+The secret is managed outside Terraform, so its values never enter Terraform state.
 
 ## Validate, review, deploy
 

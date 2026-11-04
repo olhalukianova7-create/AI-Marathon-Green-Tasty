@@ -1,6 +1,6 @@
-import { HttpClient, HttpContext } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { map, Observable, switchMap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, throwError } from 'rxjs';
 import { GroupSessionsResponse } from '@app/models/group-orders/group-sessions-response.model';
 import { GroupStatusResponse } from '@app/models/group-orders/group-status.model';
 import { OwnerSessionResponse } from '@app/models/group-orders/owner-session.model';
@@ -36,9 +36,17 @@ export class GroupOrdersService {
   getOwnerSessionId$(reservationId: string): Observable<string> {
     return this.http
       .get<OwnerSessionResponse>(
-        `${this.baseUrl}/reservations/${encodeURIComponent(reservationId)}/guest-session-id`
+        `${this.baseUrl}/reservations/${encodeURIComponent(reservationId)}/guest-session-id`,
+        { context: new HttpContext().set(SKIP_ERROR_TOAST, true) }
       )
-      .pipe(map(({ guestSessionId }) => guestSessionId));
+      .pipe(
+        map(({ guestSessionId }) => guestSessionId),
+        // The owner's basket is optional. A new group can contain guests before
+        // the owner has a session; the backend returns 404 for that missing basket.
+        catchError((error: HttpErrorResponse) =>
+          error.status === 404 ? of('') : throwError(() => error)
+        )
+      );
   }
 
   getStatus$(
