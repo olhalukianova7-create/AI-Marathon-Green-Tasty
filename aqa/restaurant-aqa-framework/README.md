@@ -24,6 +24,14 @@ reported **14 passed, 0 failed, 0 skipped** in 123.2 seconds: 13 cases against t
 deployed app plus one isolated API contract. GitHub Actions and AWS CodeBuild still
 need to verify the combined 30-case suite.
 
+Cloud run `41751548828` completed 25/30 cases. Its remaining failures involved
+HTTP 504 responses and UI requests that did not finish before their deadlines.
+CloudWatch reports for the run showed the API Lambda at 128 MB, peak reported
+memory usage of 125 MB, and a maximum invocation duration of 33.3 seconds. The
+API-handler source configuration now specifies 512 MB to provide additional memory
+and CPU. Apply that runtime setting before repeating cloud verification; whether
+it resolves the failures remains to be verified by the new runs.
+
 ## Dedicated account setup
 
 Register three distinct application accounts: the reservation owner, another customer,
